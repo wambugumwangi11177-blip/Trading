@@ -22,7 +22,7 @@ BTC = Instrument("BTC-USD", "BTC/USD", "momentum", "crypto", "Bitcoin",
 NO_TV = Instrument("XYZ", "XYZ", "momentum", "equity", "Unmapped")
 
 ACCOUNT_OK = {
-    "success": True, "broker": "Paper Trading", "account_id": "28617879", "is_paper": True,
+    "success": True, "broker": "Paper Trading", "account_id": "00000000", "is_paper": True,
     "balance": 111822.25, "equity": 111822.25, "realized_pnl": 11822.25,
     "unrealized_pnl": 0, "account_margin": 0, "available_funds": 111700.0,
     "margin_buffer_pct": 100,

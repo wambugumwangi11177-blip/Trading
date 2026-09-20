@@ -25,8 +25,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from ..data.feed import fetch_history
-from ..live_runner import drop_incomplete_bar
+from ..data.feed import drop_incomplete_bar, fetch_history
 from .fmt import px
 from .cot import CotError, CotReport, NoCotMarket, fetch_cot
 from .gamma import GammaProfile
@@ -63,6 +62,21 @@ COVERAGE: dict[str, Coverage] = {
     "USO": Coverage("USO", "USO", "USO", "USO"),
     "IWM": Coverage("IWM", "IWM", "IWM", None),
 }
+
+def coverage_for_ticker(ticker: str) -> Coverage | None:
+    """Coverage whose history feed is `ticker` (a yfinance symbol), if any.
+
+    live_runner instruments are keyed by their yfinance ticker; the briefing
+    is keyed by display name. MGC=F has no entry of its own because gold
+    futures and spot read the same positioning -- it resolves to XAUUSD.
+    """
+    aliases = {"MGC=F": "GC=F", "GC=F": "GC=F"}
+    wanted = aliases.get(ticker, ticker)
+    for cov in COVERAGE.values():
+        if cov.history == wanted:
+            return cov
+    return None
+
 
 # What the small account will trade, in the user's order of preference.
 SMALL_ACCOUNT_UNIVERSE: tuple[str, ...] = ("XAUUSD", "EURUSD", "AUDUSD")

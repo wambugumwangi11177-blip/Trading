@@ -258,6 +258,13 @@ class RiskConfig:
     # Trade instruments whose strategy has no documented backtest support.
     # Default off: see Instrument.validated.
     trade_unvalidated: bool = os.getenv("TRADE_UNVALIDATED", "false").lower() == "true"
+    # Refuse entries that fight the positioning briefing (risk/intel_gate.py).
+    # Fail-open on missing coverage; never consulted on exits.
+    intel_gate_enabled: bool = os.getenv("INTEL_GATE_ENABLED", "true").lower() == "true"
+    # Below this equity the 1% rule is unreachable on standard minimum lots
+    # (see sizing_check.py) and every run says so in the journal and the
+    # briefing, so a small live account is never traded in silence.
+    small_account_equity: float = float(os.getenv("SMALL_ACCOUNT_EQUITY", "1000"))
 
 
 @dataclass(frozen=True)

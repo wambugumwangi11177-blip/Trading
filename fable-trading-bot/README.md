@@ -162,6 +162,77 @@ Everything above `EconomicEvent` is provider-specific by design: to switch
 sources, write another function returning `list[EconomicEvent]` and the filter
 needs no changes.
 
+## The rulebook, collectively
+
+Every rule that stands between a strategy signal and an order, in the order
+the runner applies them. The first block is the original design; the second is
+the intraday layer; the third was added 2026-09-20 after the audit. They all
+apply together on every entry. **Exits are never gated by anything.**
+
+### Strategies (what looks like a trade)
+
+| strategy | instruments | entry | exit | validated |
+|---|---|---|---|---|
+| `mean_reversion` | SPY, QQQ, MES, MNQ | z-score beyond +/-2.0 (20d) **and** SMC confluence (sweep / FVG retest) in the reversion direction | z back inside +/-0.5 | design |
+| `momentum` | BTC | close breaks 20d Donchian **and** an SMC sweep of the opposite side just happened | 3x ATR chandelier trail, or opposite-channel break | design |
+| `trend_following` | GLD, USO, all FX, metals, indices | EMA20 vs EMA50 bias **and** a pullback into an SMC zone with the trend | trend flip or 2.5x ATR trail | design (ETFs); **not** for the 2026-08 additions |
+| `long_or_flat_trend` | MGC | any 1 of 3 up: 63d momentum, MA 20/100, 50d Donchian | all 3 down -> flat; never shorts | **yes** — t=2.31, OOS Sharpe 0.65; a drawdown control, not an edge |
+| `intraday_momentum` | ES/NQ futures | noise-band breakout from the session open, band from prior 14 sessions | hard stop, VWAP trail, flat before close | backtest harness only; not wired to live |
+
+SMC confluence (`strategies/smc.py`): market structure, liquidity sweeps of
+confirmed swing points, fair value gaps, order blocks — delayed by the swing
+window so live and backtest see the same thing.
+
+### Original risk rules (`risk/manager.py`, `risk/event_filter.py`, `lessons.py`)
+
+1. **1% of equity per trade**, sized off the ATR stop distance and the contract point value. Rounded DOWN to the venue's step; if one unit exceeds the budget, skip.
+2. **Correlation block**: no new same-direction position when a >=0.7-correlated one is open.
+3. **10% drawdown kill-switch**: flatten everything, halt until a human resets it.
+4. **Event blackout**: no entries 60 min before / 30 min after a high-impact release.
+5. **Never pyramid** (`max_adds = 0`).
+6. **Sizing sanity bounds**: risk 0.25–1.5%, notional <= 200% of equity, dust floor.
+7. **No take-profits.** Tested 2026-08-05 and rejected: a 1R TP cut the gold strategy's return ~70x while *raising* its win rate.
+8. **Blocked symbols** the venue cannot fill (VIX, DXY, NDX, IXIC, TNX, VXN).
+9. **Verification + reconciliation**: every order is re-read from the venue; missing runs and unjournaled fills surface within a day.
+
+### Intraday session rules (`risk/session_guard.py`) — for the futures layer
+
+10. **3% daily loss limit**, then the session is over.
+11. **Max 4 trades per session**, max 1 concurrent.
+12. **No entries** in the first 5 min or last 20 min; **flatten** 5 min before the close; nothing held overnight.
+13. **No discretionary management**: no breakeven moves, no scaling out, no re-entries — none of it was validated.
+
+### Added 2026-09-20 (`risk/manager.py`, `risk/intel_gate.py`, `intel/`)
+
+14. **Durable kill-switch**: the peak persists across runs (it used to reset every morning).
+15. **Book-wide caps**: max 3 concurrent positions, max 2% new risk per run.
+16. **Validated-only universe** by default (`TRADE_UNVALIDATED=true` restores the rest).
+17. **Positioning gate** — an entry is refused when it fights the forced flow:
+    - retail >= 75% on the **same** side (trapped with the crowd);
+    - the forced-flow sections (COT, sentiment, liquidity) **agree** against it;
+    - breakout strategy in a **long-gamma** regime, or fade strategy in a **short-gamma** regime;
+    - the ATR stop sits within 0.25% of an **untouched liquidity pool**.
+    Fail-open on missing coverage; never consulted on exits.
+
+### Reading the briefing before the open
+
+```
+python -m fable_bot.cli intel                  # XAUUSD EURUSD AUDUSD
+python -m fable_bot.cli intel SPY QQQ GLD      # any covered symbol
+python -m fable_bot.cli size --equity 25       # can this account honour rule 1?
+python -m fable_bot.cli drawdown               # where the kill-switch stands
+```
+
+### Small accounts
+
+Below `SMALL_ACCOUNT_EQUITY` (default $1,000) every run journals a
+`small_account` event, because rule 1 is unreachable on standard minimum lots:
+at $25, a 1,000-unit EURUSD lot with a daily-ATR stop risks ~29% of equity;
+a 1-oz gold lot cannot even be margined at 50x. `fable_bot size` shows the
+arithmetic for any equity, leverage and minimum lot. Whatever
+`MAX_RISK_PER_TRADE_PCT` is set to is the real risk; the bot will not pretend
+otherwise.
+
 ## Tests
 
 ```

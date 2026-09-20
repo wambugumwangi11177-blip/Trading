@@ -22,11 +22,12 @@ import pandas as pd
 from .broker import build_broker
 from .broker.tradingview_adapter import TradingViewError
 from .config import BROKER, EVENT_FILTER, INSTRUMENTS, MEMORY_DIR, RISK, TELEGRAM
-from .data.feed import fetch_universe_history
+from .data.feed import drop_incomplete_bar, fetch_universe_history  # noqa: F401 - re-exported for callers/tests
 from .journal import Journal
 from .lessons import LessonBook, LessonGate
 from .market_calendar import now_et
 from .risk.event_filter import build_event_filter
+from .risk.intel_gate import evaluate_entry
 from .risk.manager import (DrawdownMonitor, RiskManager, correlation_matrix,
                           portfolio_gate, sizing_sanity)
 from .strategies import build_strategy
@@ -72,33 +73,6 @@ def _get_drawdown_monitor(starting_equity: float) -> DrawdownMonitor:
     return _drawdown_monitor
 
 
-def _bar_date(stamp) -> date:
-    """Calendar date of a bar index entry, tz-aware or not."""
-    return stamp.date() if isinstance(stamp, pd.Timestamp) else pd.Timestamp(stamp).date()
-
-
-def drop_incomplete_bar(df: pd.DataFrame, today: date | None = None) -> pd.DataFrame:
-    """Trim today's still-forming daily bar off the end of a history frame.
-
-    Only relevant when the cycle runs *during* a session. yfinance happily
-    returns a partial row for the current day, and at 09:30 that row is a
-    single print: near-zero range, near-zero volume. Feeding it to the
-    strategies would contaminate every indicator computed off it -- most
-    dangerously ATR, which sets the stop distance and therefore position size.
-    A collapsed ATR yields a tight stop, a tight stop yields a large quantity,
-    and the 1%-per-trade rule quietly becomes something else.
-
-    Dropping it makes the live signal identical to the one the backtest
-    computed at yesterday's close, which is the signal actually being traded.
-    """
-    if df.empty:
-        return df
-    cutoff = today or now_et().date()
-    if _bar_date(df.index[-1]) >= cutoff:
-        return df.iloc[:-1]
-    return df
-
-
 def run_signal_check(
     *,
     require_completed_bar: bool = False,
@@ -123,6 +97,35 @@ def run_signal_check(
     open_positions = broker.get_open_positions()
     record("account", equity=account.equity, cash=account.cash, is_paper=account.is_paper,
            open_positions={s: p["side"] for s, p in open_positions.items()}, dry_run=dry_run)
+    if account.equity < RISK.small_account_equity:
+        # Said every run, on purpose. At this size the 1% rule cannot be met
+        # on a standard minimum lot (sizing_check.py has the arithmetic), so
+        # whatever MAX_RISK_PER_TRADE_PCT is set to is the real risk.
+        record("small_account", equity=account.equity, threshold=RISK.small_account_equity,
+               risk_pct_per_trade=RISK.max_risk_per_trade_pct)
+        logger.warning("SMALL ACCOUNT: equity %.2f < %.0f; per-trade risk is %.1f%% by config, "
+                       "and minimum lots may exceed it -- see `fable_bot size`",
+                       account.equity, RISK.small_account_equity, RISK.max_risk_per_trade_pct)
+
+    # Positioning intel, fetched at most once per coverage key per run. It is
+    # network-bound (option chains, CFTC), so it is only gathered for an
+    # instrument that actually reaches the entry path.
+    intel_cache: dict[str, object] = {}
+
+    def intel_for(inst):
+        if not RISK.intel_gate_enabled:
+            return None
+        from .intel.report import coverage_for_ticker, gather
+        cov = coverage_for_ticker(inst.symbol)
+        if cov is None:
+            return None
+        if cov.display not in intel_cache:
+            try:
+                intel_cache[cov.display] = gather(cov.display)
+            except Exception as exc:  # noqa: BLE001 - the gate fails open
+                logger.warning("intel gather failed for %s: %s", cov.display, exc)
+                intel_cache[cov.display] = None
+        return intel_cache[cov.display]
 
     # Lesson memory, fail-soft: a corrupt lessons.jsonl degrades to an empty
     # gate -- never worse than before lessons existed -- with the load errors
@@ -258,6 +261,21 @@ def run_signal_check(
                        lesson_id=lesson_id)
                 actions.append(f"SKIP {venue_symbol}: {reason}")
                 continue
+
+            # Positioning gate: the entry must not fight the forced flow. Sits
+            # with the other entry-only gates; the close branch above has run.
+            if RISK.intel_gate_enabled:
+                decision = evaluate_entry(
+                    side=latest.side, strategy=inst.strategy,
+                    entry_price=latest.price, stop_price=latest.stop_price,
+                    intel=intel_for(inst))
+                record("intel_gate", symbol=venue_symbol, side=latest.side,
+                       strategy=inst.strategy, allowed=decision.allowed,
+                       reason=decision.reason, **decision.evidence)
+                if not decision.allowed:
+                    record("skip", symbol=venue_symbol, gate="intel", reason=decision.reason)
+                    actions.append(f"SKIP {venue_symbol}: positioning -- {decision.reason}")
+                    continue
 
             # Forward-looking check: stand aside near a scheduled macro release, so
             # entries are never sized off an ATR that the next print invalidates.

@@ -73,6 +73,15 @@ def cycle(monkeypatch, tmp_path):
     # redirecting it the suite reads the real peak and halts on stub equity.
     monkeypatch.setattr(lr, "MEMORY_DIR", memory_dir)
     monkeypatch.setattr(lr, "_drawdown_monitor", None)
+    # The positioning gate pulls option chains and CFTC data over the network
+    # and judges against LIVE positioning, which would make these tests slow
+    # and non-deterministic. Off by default; a test that wants the gate sets
+    # cycle.intel[<display>] = SymbolIntel(...) and flips it on.
+    import dataclasses as _dc
+    monkeypatch.setattr(lr, "RISK", _dc.replace(lr.RISK, intel_gate_enabled=False))
+    intel_stubs: dict = {}
+    import fable_bot.intel.report as _report
+    monkeypatch.setattr(_report, "gather", lambda display, **kw: intel_stubs.get(display))
 
     requested: list[list[str]] = []
 
@@ -163,6 +172,10 @@ def cycle(monkeypatch, tmp_path):
         positions[venue_symbol] = {"side": side, "qty": qty,
                                    "avg_entry_price": avg_entry_price}
 
+    def enable_intel_gate():
+        monkeypatch.setattr(lr, "RISK", _dc.replace(lr.RISK, intel_gate_enabled=True))
+
     return _NS(lr=lr, broker=broker, journal=journal, signals=signals,
                memory_dir=memory_dir, requested=requested, events=events,
-               open_position=open_position, closed=closed, positions=positions)
+               open_position=open_position, closed=closed, positions=positions,
+               intel=intel_stubs, enable_intel_gate=enable_intel_gate)
