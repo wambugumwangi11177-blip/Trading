@@ -404,15 +404,117 @@ def cmd_reconcile(_args: argparse.Namespace) -> None:
         print(f"  {finding.kind:<18} {finding.detail}")
 
 
+def cmd_flatten(args: argparse.Namespace) -> None:
+    """Close every open position, retrying until the book is actually empty.
+
+    A close submitted while a market is shut is REJECTED by the paper venue,
+    not queued, and the adapter's close_position reports "closed" either way
+    because it never re-reads the book. So this loop trusts nothing but
+    get_open_positions(): it closes what it can, sleeps, and looks again,
+    which is what lets one invocation started on a Sunday afternoon flatten
+    FX at 17:00 ET and the equity/index legs at Monday's open.
+    """
+    import time as _time
+
+    from .broker import build_broker
+    from .config import BROKER
+    from .journal import Journal, setup_file_logging
+
+    setup_file_logging()
+    broker = build_broker(BROKER)
+    journal = Journal(run_id="flatten")
+    deadline = _time.time() + args.max_hours * 3600
+    poll = max(30, int(args.poll))
+
+    while True:
+        try:
+            positions = broker.get_open_positions()
+        except Exception as exc:  # noqa: BLE001 - venue may be mid-reconnect
+            print(f"could not read positions ({exc}); retrying in {poll}s")
+            _time.sleep(poll)
+            continue
+        if not positions:
+            journal.event("flatten_complete")
+            print("Book is flat.")
+            return
+        print(f"{len(positions)} open: {', '.join(positions)}")
+        if args.dry_run:
+            print("dry run -- not closing.")
+            return
+        for symbol in list(positions):
+            try:
+                broker.close_position(symbol)
+                journal.event("flatten_attempt", symbol=symbol)
+            except Exception as exc:  # noqa: BLE001
+                journal.event("flatten_error", symbol=symbol, error=str(exc))
+                print(f"  {symbol}: {exc}")
+        _time.sleep(5)
+        try:
+            still = broker.get_open_positions()
+        except Exception:  # noqa: BLE001
+            still = positions
+        closed_now = set(positions) - set(still)
+        for symbol in closed_now:
+            journal.event("flatten_closed", symbol=symbol)
+            print(f"  closed {symbol}")
+        if not still:
+            journal.event("flatten_complete")
+            print("Book is flat.")
+            return
+        if _time.time() > deadline:
+            journal.event("flatten_gave_up", remaining=list(still))
+            print(f"Giving up after {args.max_hours}h; still open: {', '.join(still)}")
+            return
+        print(f"  {len(still)} still open (market closed?); next try in {poll}s")
+        _time.sleep(poll)
+
+
+def cmd_size(args: argparse.Namespace) -> None:
+    """Can `--equity` honour the 1% rule on each instrument? Show the arithmetic."""
+    from .data.feed import fetch_history
+    from .intel.report import COVERAGE
+    from .intel.technicals import compute_technicals
+    from .live_runner import drop_incomplete_bar
+    from .sizing_check import PAPER_LEVERAGE, PAPER_MIN_QTY, VenueSpec, size_check
+
+    symbols = args.symbols or ["XAUUSD", "EURUSD", "AUDUSD"]
+    min_override = {}
+    for item in args.min_qty or []:
+        sym, _, qty = item.partition("=")
+        min_override[sym.upper()] = float(qty)
+
+    print(f"equity ${args.equity:,.2f}, target risk {args.risk_pct:g}% per trade, "
+          f"stop = {args.atr_mult:g}x daily ATR(14)")
+    print()
+    for symbol in symbols:
+        cov = COVERAGE.get(symbol)
+        ticker = cov.history if cov else symbol
+        try:
+            history = drop_incomplete_bar(fetch_history(ticker, period="6mo"))
+            tech = compute_technicals(symbol, history)
+        except Exception as exc:  # noqa: BLE001
+            print(f"{symbol}: could not read price/ATR ({exc})")
+            print()
+            continue
+        spec = VenueSpec(symbol=symbol, price=tech.close,
+                         min_qty=min_override.get(symbol, PAPER_MIN_QTY.get(symbol, 1.0)),
+                         leverage=args.leverage)
+        verdict = size_check(spec, equity=args.equity,
+                             stop_distance=args.atr_mult * tech.atr14, risk_pct=args.risk_pct)
+        for line in verdict.lines():
+            print(line)
+        print()
+
+
 def cmd_intel(args: argparse.Namespace) -> None:
     """Print the positioning briefing: dealer gamma + COT.
 
     Read-only and network-bound. Nothing here touches the broker or the order
     path -- it informs a decision, it does not take one.
     """
-    from .intel.report import GAMMA_UNIVERSE, build_market_report
+    from .intel.report import DEFAULT_UNIVERSE, build_market_report
 
-    symbols = tuple(args.symbols) if args.symbols else GAMMA_UNIVERSE
+    symbols = tuple(args.symbols) if args.symbols else DEFAULT_UNIVERSE
     print(build_market_report(symbols, max_expiries=args.expiries))
 
 
@@ -532,10 +634,28 @@ def main(argv: list[str] | None = None) -> None:
                    help="Manually reconcile broker history against the journal").set_defaults(
                        func=cmd_reconcile)
 
+    p_flat = sub.add_parser("flatten", help="Close every open position, retrying across market opens")
+    p_flat.add_argument("--poll", type=int, default=300, help="seconds between retries (default 300)")
+    p_flat.add_argument("--max-hours", type=float, default=30.0,
+                        help="give up after this many hours (default 30: covers a weekend into Monday)")
+    p_flat.add_argument("--dry-run", action="store_true", help="list positions without closing")
+    p_flat.set_defaults(func=cmd_flatten)
+
+    p_size = sub.add_parser("size", help="Can this equity honour the 1%% rule? Show the arithmetic per instrument")
+    p_size.add_argument("--equity", type=float, required=True, help="account equity in USD")
+    p_size.add_argument("--leverage", type=float, default=50.0, help="venue leverage (default 50, paper)")
+    p_size.add_argument("--risk-pct", type=float, default=1.0, help="target risk per trade %% (default 1)")
+    p_size.add_argument("--atr-mult", type=float, default=1.5, help="stop as a multiple of ATR14 (default 1.5)")
+    p_size.add_argument("--min-qty", action="append", metavar="SYM=QTY",
+                        help="override a venue minimum, e.g. XAUUSD=0.01 (repeatable)")
+    p_size.add_argument("symbols", nargs="*", help="default: XAUUSD EURUSD AUDUSD")
+    p_size.set_defaults(func=cmd_size)
+
     p_intel = sub.add_parser(
         "intel", help="Positioning briefing: dealer gamma exposure + CFTC COT")
     p_intel.add_argument("symbols", nargs="*",
-                         help="underlyings to profile (default: SPY QQQ GLD USO IWM)")
+                         help="instruments to brief (default: XAUUSD EURUSD AUDUSD; "
+                              "also SPY QQQ GLD USO IWM)")
     p_intel.add_argument("--expiries", type=int, default=4,
                          help="option expiries to include per symbol (default 4)")
     p_intel.set_defaults(func=cmd_intel)
