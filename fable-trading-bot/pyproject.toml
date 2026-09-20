@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fable-trading-bot"
+version = "0.1.0"
+description = "5-instrument multi-strategy trading bot: mean reversion, momentum, trend following, with SMC confluence filtering, risk management, backtesting, and Alpaca paper/live execution."
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+include = ["fable_bot*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

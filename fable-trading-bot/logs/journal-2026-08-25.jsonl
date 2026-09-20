@@ -1,0 +1,16 @@
+{"ts": "2026-08-25T13:20:00+00:00", "run_id": "20260825T132000-1cba55", "kind": "run_start", "local_time": "2026-08-25 09:20:00.039867-04:00", "tz": "America/New_York", "dry_run": false, "provider": "tradingview", "mode": "paper"}
+{"ts": "2026-08-25T13:20:00+00:00", "run_id": "20260825T132000-1cba55", "kind": "session", "day": "2026-08-25", "open_at": "2026-08-25 09:30:00-04:00", "close_at": "2026-08-25 16:00:00-04:00", "early_close": false}
+{"ts": "2026-08-25T13:20:45+00:00", "run_id": "20260825T132000-1cba55", "kind": "preflight", "ok": true, "detail": "Paper Trading ready, equity 117,070.73", "cdp_connected": true, "broker_connected": true, "is_paper": true, "equity": 117070.72788099997, "broker": "Paper Trading", "launched": true}
+{"ts": "2026-08-25T13:20:45+00:00", "run_id": "20260825T132000-1cba55", "kind": "waiting_for_open", "minutes": 9.2, "open_at": "2026-08-25 09:30:00-04:00"}
+{"ts": "2026-08-25T14:43:48+00:00", "run_id": "20260825T132000-1cba55", "kind": "open_reached", "at": "2026-08-25 10:43:48.645717-04:00"}
+{"ts": "2026-08-25T16:21:43+00:00", "run_id": "20260825T132000-1cba55", "kind": "account", "equity": 117148.01788099998, "cash": 92049.41788099997, "is_paper": true, "open_positions": {"AMEX:GLD": "long"}, "dry_run": false}
+{"ts": "2026-08-25T16:22:04+00:00", "run_id": "20260825T132000-1cba55", "kind": "bar_trimmed", "symbol": "SPY", "dropped": "2026-08-25 00:00:00-04:00", "now_evaluating": "2026-08-24 00:00:00-04:00"}
+{"ts": "2026-08-25T16:22:04+00:00", "run_id": "20260825T132000-1cba55", "kind": "bar_trimmed", "symbol": "QQQ", "dropped": "2026-08-25 00:00:00-04:00", "now_evaluating": "2026-08-24 00:00:00-04:00"}
+{"ts": "2026-08-25T16:22:04+00:00", "run_id": "20260825T132000-1cba55", "kind": "bar_trimmed", "symbol": "BTC-USD", "dropped": "2026-08-25 00:00:00+00:00", "now_evaluating": "2026-08-24 00:00:00+00:00"}
+{"ts": "2026-08-25T16:22:04+00:00", "run_id": "20260825T132000-1cba55", "kind": "bar_trimmed", "symbol": "GLD", "dropped": "2026-08-25 00:00:00-04:00", "now_evaluating": "2026-08-24 00:00:00-04:00"}
+{"ts": "2026-08-25T16:22:04+00:00", "run_id": "20260825T132000-1cba55", "kind": "bar_trimmed", "symbol": "USO", "dropped": "2026-08-25 00:00:00-04:00", "now_evaluating": "2026-08-24 00:00:00-04:00"}
+{"ts": "2026-08-25T16:22:04+00:00", "run_id": "20260825T132000-1cba55", "kind": "bar_trimmed", "symbol": "GBPUSD=X", "dropped": "2026-08-25 00:00:00+01:00", "now_evaluating": "2026-08-24 00:00:00+01:00"}
+{"ts": "2026-08-25T16:22:04+00:00", "run_id": "20260825T132000-1cba55", "kind": "bar_trimmed", "symbol": "EURUSD=X", "dropped": "2026-08-25 00:00:00+01:00", "now_evaluating": "2026-08-24 00:00:00+01:00"}
+{"ts": "2026-08-25T16:22:04+00:00", "run_id": "20260825T132000-1cba55", "kind": "bar_trimmed", "symbol": "USDJPY=X", "dropped": "2026-08-25 00:00:00+01:00", "now_evaluating": "2026-08-24 00:00:00+01:00"}
+{"ts": "2026-08-25T16:22:04+00:00", "run_id": "20260825T132000-1cba55", "kind": "bar_trimmed", "symbol": "AUDUSD=X", "dropped": "2026-08-25 00:00:00+01:00", "now_evaluating": "2026-08-24 00:00:00+01:00"}
+{"ts": "2026-08-25T16:22:10+00:00", "run_id": "20260825T132000-1cba55", "kind": "run_end", "status": "ok", "detail": "no signals on today's bar, Equity 117,070.73", "actions": [], "session_day": "2026-08-25"}

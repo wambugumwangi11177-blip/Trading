@@ -1,0 +1,3 @@
+{"ts": "2026-09-20T15:00:11+00:00", "run_id": "20260920T150011-e4bd73", "kind": "run_start", "local_time": "2026-09-20 11:00:11.406106-04:00", "tz": "America/New_York", "dry_run": false, "provider": "tradingview", "mode": "paper"}
+{"ts": "2026-09-20T15:00:11+00:00", "run_id": "20260920T150011-e4bd73", "kind": "no_session", "day": "2026-09-20", "reason": "Sunday"}
+{"ts": "2026-09-20T15:00:11+00:00", "run_id": "20260920T150011-e4bd73", "kind": "run_end", "status": "no_session", "detail": "No NYSE session today (Sunday).", "actions": [], "session_day": null}

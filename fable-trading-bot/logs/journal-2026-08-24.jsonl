@@ -1,0 +1,12 @@
+{"ts": "2026-08-24T13:20:00+00:00", "run_id": "20260824T132000-cb957a", "kind": "run_start", "local_time": "2026-08-24 09:20:00.070603-04:00", "tz": "America/New_York", "dry_run": false, "provider": "tradingview", "mode": "paper"}
+{"ts": "2026-08-24T13:20:00+00:00", "run_id": "20260824T132000-cb957a", "kind": "session", "day": "2026-08-24", "open_at": "2026-08-24 09:30:00-04:00", "close_at": "2026-08-24 16:00:00-04:00", "early_close": false}
+{"ts": "2026-08-24T13:21:11+00:00", "run_id": "20260824T132000-cb957a", "kind": "preflight", "ok": true, "detail": "Paper Trading ready, equity 116,513.11", "cdp_connected": true, "broker_connected": true, "is_paper": true, "equity": 116513.10788099997, "broker": "Paper Trading", "launched": true}
+{"ts": "2026-08-24T13:21:11+00:00", "run_id": "20260824T132000-cb957a", "kind": "waiting_for_open", "minutes": 8.8, "open_at": "2026-08-24 09:30:00-04:00"}
+{"ts": "2026-08-24T13:30:00+00:00", "run_id": "20260824T132000-cb957a", "kind": "open_reached", "at": "2026-08-24 09:30:00.000182-04:00"}
+{"ts": "2026-08-24T13:31:01+00:00", "run_id": "20260824T132000-cb957a", "kind": "account", "equity": 116549.68788099998, "cash": 91236.91788099997, "is_paper": true, "open_positions": {"AMEX:GLD": "long"}, "dry_run": false}
+{"ts": "2026-08-24T13:31:20+00:00", "run_id": "20260824T132000-cb957a", "kind": "bar_trimmed", "symbol": "SPY", "dropped": "2026-08-24 00:00:00-04:00", "now_evaluating": "2026-08-21 00:00:00-04:00"}
+{"ts": "2026-08-24T13:31:20+00:00", "run_id": "20260824T132000-cb957a", "kind": "bar_trimmed", "symbol": "QQQ", "dropped": "2026-08-24 00:00:00-04:00", "now_evaluating": "2026-08-21 00:00:00-04:00"}
+{"ts": "2026-08-24T13:31:20+00:00", "run_id": "20260824T132000-cb957a", "kind": "bar_trimmed", "symbol": "BTC-USD", "dropped": "2026-08-24 00:00:00+00:00", "now_evaluating": "2026-08-23 00:00:00+00:00"}
+{"ts": "2026-08-24T13:31:20+00:00", "run_id": "20260824T132000-cb957a", "kind": "bar_trimmed", "symbol": "GLD", "dropped": "2026-08-24 00:00:00-04:00", "now_evaluating": "2026-08-21 00:00:00-04:00"}
+{"ts": "2026-08-24T13:31:20+00:00", "run_id": "20260824T132000-cb957a", "kind": "bar_trimmed", "symbol": "USO", "dropped": "2026-08-24 00:00:00-04:00", "now_evaluating": "2026-08-21 00:00:00-04:00"}
+{"ts": "2026-08-24T13:31:30+00:00", "run_id": "20260824T132000-cb957a", "kind": "run_end", "status": "ok", "detail": "no signals on today's bar, Equity 116,513.11", "actions": [], "session_day": "2026-08-24"}

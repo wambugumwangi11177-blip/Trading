@@ -1,0 +1,23 @@
+# Virtualenvs and build artefacts
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.cache/
+node_modules/
+
+# Secrets. Never commit: config/.env.example is the template that IS committed.
+.env
+*.env
+!.env.example
+
+# Nested checkouts with their own git history.
+Agent-Reach/
+tradingview-mcp/
+
+# Run output. The journal and lesson memory ARE committed (see below) because
+# they are the audit trail; the rolling debug log is not.
+fable-trading-bot/logs/*.log
+fable-trading-bot/logs/*.lock
+screenshots/

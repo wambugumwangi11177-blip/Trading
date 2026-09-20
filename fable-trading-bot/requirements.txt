@@ -1,0 +1,9 @@
+yfinance>=0.2.40
+requests>=2.31
+pandas>=2.2
+numpy>=1.26
+python-dotenv>=1.0
+alpaca-py>=0.33
+python-telegram-bot>=21.0
+apscheduler>=3.10
+pytest>=8.0
