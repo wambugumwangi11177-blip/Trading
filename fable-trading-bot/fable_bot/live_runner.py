@@ -191,14 +191,6 @@ def run_signal_check(
             record("skip", symbol=inst.symbol, gate="tradability",
                    reason="intelligence-only series")
             continue
-        if not inst.validated and not RISK.trade_unvalidated:
-            # Paper-only experiments do not get risk by default. These are the
-            # instruments config.py itself marks "NOT backtest-validated", and
-            # they are what the book was mostly made of during the Aug-Sep round
-            # trip. Set TRADE_UNVALIDATED=true to put them back deliberately.
-            record("skip", symbol=inst.symbol, gate="unvalidated",
-                   reason="no documented backtest support; TRADE_UNVALIDATED is off")
-            continue
         try:
             df = price_history[inst.symbol]
             if df.empty:
@@ -245,6 +237,17 @@ def run_signal_check(
                            gate="max_adds", lesson_id=adds_lesson)
                 else:
                     record("skip", symbol=venue_symbol, reason="position already open")
+                continue
+
+            # Entries only, for the same reason the lesson gate below is:
+            # the flat/close branch above has already run. Gating this any
+            # earlier would strand every open position in a quarantined
+            # instrument -- USDCHF, UKX and EURGBP were all open when this
+            # quarantine was introduced, and an exit-blocking gate would have
+            # meant the bot could never close them again.
+            if not inst.validated and not RISK.trade_unvalidated:
+                record("skip", symbol=venue_symbol, gate="unvalidated",
+                       reason="no documented backtest support; TRADE_UNVALIDATED is off")
                 continue
 
             # Lesson gate: entries only -- the flat/close branch above runs

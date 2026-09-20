@@ -429,8 +429,18 @@ def cmd_drawdown(args: argparse.Namespace) -> None:
                                    max_drawdown_pct=RISK.max_drawdown_pct,
                                    current_equity=equity)
     if args.reset:
-        monitor.manual_reset(new_peak=equity)
-        print(f"Kill-switch reset. Peak re-baselined to {equity:,.2f}.")
+        # Re-baselining to current equity is the right default for a REAL halt:
+        # resuming means accepting today's equity as the new high-water mark.
+        # --keep-peak is for a halt that should never have fired (a bad state
+        # write, a bogus equity read); re-baselining then would silently lower
+        # the bar and under-protect from that point on.
+        new_peak = None if args.keep_peak else equity
+        monitor.manual_reset(new_peak=new_peak)
+        if args.keep_peak:
+            print(f"Kill-switch reset. Peak preserved at {monitor.peak_equity:,.2f} "
+                  f"(drawdown now {monitor.drawdown_pct(equity):.2f}%).")
+        else:
+            print(f"Kill-switch reset. Peak re-baselined to {equity:,.2f}.")
         return
     print(f"state file    : {state_path}")
     print(f"peak equity   : {monitor.peak_equity:,.2f}")
@@ -533,6 +543,9 @@ def main(argv: list[str] | None = None) -> None:
     p_dd = sub.add_parser("drawdown", help="Show or reset the durable drawdown kill-switch")
     p_dd.add_argument("--reset", action="store_true",
                       help="clear a halt and re-baseline the peak to current equity")
+    p_dd.add_argument("--keep-peak", action="store_true",
+                      help="clear the halt but keep the existing peak (for a halt "
+                           "that should never have fired)")
     p_dd.add_argument("--equity", type=float,
                       help="use this equity instead of querying the broker")
     p_dd.set_defaults(func=cmd_drawdown)
