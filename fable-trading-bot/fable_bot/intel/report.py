@@ -55,6 +55,7 @@ class Coverage:
 COVERAGE: dict[str, Coverage] = {
     "XAUUSD": Coverage("XAUUSD", "GC=F", "GLD", "GLD"),
     "EURUSD": Coverage("EURUSD", "EURUSD=X", None, "EURUSD=X"),
+    "GBPUSD": Coverage("GBPUSD", "GBPUSD=X", None, "GBPUSD=X"),
     "AUDUSD": Coverage("AUDUSD", "AUDUSD=X", None, "AUDUSD=X"),
     "GLD": Coverage("GLD", "GLD", "GLD", "GLD"),
     "SPY": Coverage("SPY", "SPY", "SPY", "SPY"),
